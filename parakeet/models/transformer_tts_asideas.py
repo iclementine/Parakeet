@@ -325,8 +325,8 @@ class CNNPostNet(nn.Layer):
                 Conv1dBatchNorm(c_in, c_out, kernel_size, 
                                 weight_attr=I.XavierUniform(), 
                                 padding=padding,
-                                data_format="NLC"))
-        self.last_bn = nn.BatchNorm1D(d_output, data_format="NLC")
+                                data_format="NCL"))
+        self.last_bn = nn.BatchNorm1D(d_output, data_format="NCL")
     
     def forward(self, x):
         x_in = x
@@ -428,9 +428,9 @@ class TransformerTTS(nn.Layer):
         stop_logits = self.stop_conditioner(mel_intermediate)
         
         # cnn postnet
-        #mel_channel_first = paddle.transpose(mel_intermediate, [0, 2, 1])
-        mel_output = self.decoder_postnet(mel_intermediate)
-        #mel_output = paddle.transpose(mel_output, [0, 2, 1])
+        mel_channel_first = paddle.transpose(mel_intermediate, [0, 2, 1])
+        mel_output = self.decoder_postnet(mel_channel_first)
+        mel_output = paddle.transpose(mel_output, [0, 2, 1])
 
         return mel_output, mel_intermediate, cross_attention_weights, stop_logits
     
@@ -508,6 +508,7 @@ def weighted_mean(input, weight):
         Tensor: shape(1,), weighted mean tensor with the same dtype as input.
     """
     weight = paddle.cast(weight, input.dtype)
+    #weight_ = paddle.broadcast_to(weight, input.shape)
     return paddle.mean(input * weight)
 
 def masked_l1_loss(prediction, target, mask):

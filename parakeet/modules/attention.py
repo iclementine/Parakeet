@@ -27,6 +27,7 @@ def scaled_dot_product_attention(q, k, v, mask=None, dropout=0.0, training=True)
     scaled_logit = paddle.scale(qk, 1.0 / math.sqrt(d))
     
     if mask is not None:
+        mask = paddle.broadcast_to(mask, scaled_logit.shape)
         scaled_logit += paddle.scale((1.0 - mask), -1e9) # hard coded here
     
     attn_weights = F.softmax(scaled_logit, axis=-1)
@@ -60,7 +61,9 @@ def drop_head(x, drop_n_heads, training):
         np.random.shuffle(subarray)
     scale = float(num_heads) / (num_heads - drop_n_heads)
     mask = scale * np.reshape(mask, [batch_size, num_heads, 1, 1])
-    out = x * paddle.to_tensor(mask)
+    mask = paddle.to_tensor(mask)
+    mask = paddle.broadcast_to(mask, x.shape)
+    out = x * mask
     return out
 
 def _split_heads(x, num_heads):
