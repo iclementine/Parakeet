@@ -121,7 +121,7 @@ class Experiment(ExperimentBase):
 
         self.model.train()
         self.optimizer.clear_grad()
-        wav, = batch
+        wav = batch
         
         # data preprocessing
         S = self.stft.magnitude(wav)
@@ -153,7 +153,7 @@ class Experiment(ExperimentBase):
         valid_losses = []
         
         for batch in self.valid_loader:
-            wav, = batch
+            wav = batch
             # data preprocessing
             S = self.stft.magnitude(wav)
             mel = self.mel_scale(S)
