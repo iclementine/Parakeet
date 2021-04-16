@@ -16,6 +16,7 @@ import paddle
 from paddle import nn
 from paddle.nn import functional as F
 from scipy import signal
+import librosa
 from librosa.util import pad_center
 import numpy as np
 
@@ -70,8 +71,6 @@ def dequantize(quantized, n_bands, dtype=None):
     value = (paddle.cast(quantized, dtype) + 0.5) * (2.0 / n_bands) - 1.0
     return value
 
-import librosa
-librosa.stft(
 
 class STFT(nn.Layer):
     """A module for computing stft transformation in a differentiable way. 
@@ -118,7 +117,7 @@ class STFT(nn.Layer):
     """
 
     def __init__(self, n_fft, hop_length=None, win_length=None, window="hanning", center=True, pad_mode="reflect"):
-        super(STFT, self).__init__()
+        super().__init__()
         # By default, use the entire frame
         if win_length is None:
             win_length = n_fft
@@ -220,3 +219,16 @@ class STFT(nn.Layer):
         power = self.power(x)
         magnitude = paddle.sqrt(power)
         return magnitude
+
+
+class MelScale(nn.Layer):
+    def __init__(self, sr, n_fft, n_mels, fmin, fmax):
+        super().__init__()
+        mel_basis = librosa.filters.mel(sr, n_fft, n_mels, fmin, fmax)
+        print(mel_basis.shape)
+        self.weight = paddle.to_tensor(mel_basis)
+        
+    def forward(self, spec):
+        # (n_mels, n_freq) * (batch_size, n_freq, n_frames)
+        mel = paddle.matmul(self.weight, spec)
+        return mel
