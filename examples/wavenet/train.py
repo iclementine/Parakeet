@@ -143,10 +143,16 @@ class Experiment(ExperimentBase):
         msg += "time: {:>.3f}s/{:>.3f}s, ".format(data_loader_time,
                                                   iteration_time)
         msg += "train/loss: {:>.6f}".format(loss_value)
+        msg += "lr: {:>/6f}".format(self.optimizer.get_lr())
         self.logger.info(msg)
         if dist.get_rank() == 0:
             self.visualizer.add_scalar(
                 "train/loss", loss_value, self.iteration)
+            self.visualizer.add_audio(
+                "train/lr", self.optimizer.get_lr(), self.iteration)
+        
+        # now we have to call learning rate scheduler.step() mannually
+        self.optimizer._learning_rate.step()
 
     @mp_tools.rank_zero_only
     @paddle.no_grad()
