@@ -126,7 +126,7 @@ class Experiment(ExperimentBase):
         # data preprocessing
         S = self.stft.magnitude(wav)
         mel = self.mel_scale(S)
-        logmel = paddle.log(mel, paddle.clip(mel, min=1e-5))
+        logmel = 20 * paddle.log10(mel, paddle.clip(mel, min=1e-5))
         logmel = paddle.clip((logmel + 80) / 100, min=0.0, max=1.0)
         
         # forward & backward
@@ -158,7 +158,7 @@ class Experiment(ExperimentBase):
             # data preprocessing
             S = self.stft.magnitude(wav)
             mel = self.mel_scale(S)
-            logmel = paddle.log(mel, paddle.clip(mel, min=1e-5))
+            logmel = 20 * paddle.log10(mel, paddle.clip(mel, min=1e-5))
             logmel = paddle.clip((logmel + 80) / 100, min=0.0, max=1.0)
             
             y = self.model(wav, logmel)
