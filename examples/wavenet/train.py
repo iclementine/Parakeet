@@ -148,7 +148,7 @@ class Experiment(ExperimentBase):
         if dist.get_rank() == 0:
             self.visualizer.add_scalar(
                 "train/loss", loss_value, self.iteration)
-            self.visualizer.add_audio(
+            self.visualizer.add_scalar(
                 "train/lr", self.optimizer.get_lr(), self.iteration)
         
         # now we have to call learning rate scheduler.step() mannually
