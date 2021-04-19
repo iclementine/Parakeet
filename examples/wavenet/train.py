@@ -30,6 +30,8 @@ from parakeet.utils import scheduler, mp_tools
 from parakeet.training.cli import default_argument_parser
 from parakeet.training.experiment import ExperimentBase
 from parakeet.utils.mp_tools import rank_zero_only
+from parakeet.datasets import AudioDataset, AudioSegmentDataset
+from parakeet.data import batch_wav
 
 from parakeet.modules.audio import STFT, MelScale
 
@@ -69,8 +71,7 @@ class Experiment(ExperimentBase):
         self.model = model
         self.model_core = model._layers if self.parallel else model
         self.optimizer = optimizer
-        
-        
+
 
     def setup_dataloader(self):
         config = self.config
@@ -85,10 +86,17 @@ class Experiment(ExperimentBase):
         train_clip_size = int(config.data.train_clip_seconds * config.data.sample_rate)
         length = context_size + train_clip_size
         
-        ljspeech_dataset = LJSpeech(
-            args.data, config.data.sample_rate, length, config.data.top_db)
-        valid_set, train_set = dataset.split(ljspeech_dataset,
-                                             config.data.valid_size)
+        root = Path(args.data).expanduser()
+        file_paths = sorted(list((root / "wavs").rglob("*.wav")))
+        train_set = AudioSegmentDataset(
+            file_paths[config.data.valid_size:],
+            config.data.sample_rate,
+            length,
+            top_db=config.data.top_db)
+        valid_set = AudioDataset(
+            file_paths[:config.data.valid_size],
+            config.data.sample_rate,
+            top_db=config.data.top_db)
 
         if not self.parallel:
             train_loader = DataLoader(
@@ -108,7 +116,10 @@ class Experiment(ExperimentBase):
                 train_set, batch_sampler=sampler, num_workers=1)
 
         valid_loader = DataLoader(
-            valid_set, batch_size=config.data.batch_size, num_workers=1)
+            valid_set, 
+            batch_size=config.data.batch_size, 
+            num_workers=1, 
+            collate_fn=batch_wav)
 
         self.train_loader = train_loader
         self.valid_loader = valid_loader
@@ -142,7 +153,7 @@ class Experiment(ExperimentBase):
         msg += "step: {}, ".format(self.iteration)
         msg += "time: {:>.3f}s/{:>.3f}s, ".format(data_loader_time,
                                                   iteration_time)
-        msg += "train/loss: {:>.6f}".format(loss_value)
+        msg += "train/loss: {:>.6f}, ".format(loss_value)
         msg += "lr: {:>.6f}".format(self.optimizer.get_lr())
         self.logger.info(msg)
         if dist.get_rank() == 0:
@@ -160,7 +171,7 @@ class Experiment(ExperimentBase):
         valid_losses = []
         
         for batch in self.valid_loader:
-            wav = batch
+            wav, length = batch
             # data preprocessing
             S = self.stft.magnitude(wav)
             mel = self.mel_scale(S)
