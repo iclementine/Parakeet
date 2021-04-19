@@ -143,7 +143,7 @@ class Experiment(ExperimentBase):
         msg += "time: {:>.3f}s/{:>.3f}s, ".format(data_loader_time,
                                                   iteration_time)
         msg += "train/loss: {:>.6f}".format(loss_value)
-        msg += "lr: {:>/6f}".format(self.optimizer.get_lr())
+        msg += "lr: {:>.6f}".format(self.optimizer.get_lr())
         self.logger.info(msg)
         if dist.get_rank() == 0:
             self.visualizer.add_scalar(
