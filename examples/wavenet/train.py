@@ -96,7 +96,7 @@ class Experiment(ExperimentBase):
                 batch_size=config.data.batch_size,
                 shuffle=True,
                 drop_last=True,
-                num_workers=0,
+                num_workers=1,
             )
         else:
             sampler = DistributedBatchSampler(
@@ -127,6 +127,7 @@ class Experiment(ExperimentBase):
         S = self.stft.magnitude(wav)
         mel = self.mel_scale(S)
         logmel = paddle.log(mel, paddle.clip(mel, min=1e-5))
+        logmel = paddle.clip((logmel + 80) / 100, min=0.0, max=1.0)
         
         # forward & backward
 
@@ -158,6 +159,7 @@ class Experiment(ExperimentBase):
             S = self.stft.magnitude(wav)
             mel = self.mel_scale(S)
             logmel = paddle.log(mel, paddle.clip(mel, min=1e-5))
+            logmel = paddle.clip((logmel + 80) / 100, min=0.0, max=1.0)
             
             y = self.model(wav, logmel)
             loss = self.model_core.loss(y, wav)

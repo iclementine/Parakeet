@@ -223,7 +223,7 @@ class ResidualBlock(nn.Layer):
     """
         h = x
         length = x.shape[-1]
-
+        
         # dilated conv
         h = self.conv(h)
 
