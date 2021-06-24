@@ -31,7 +31,7 @@ from parakeet.training.reporter import report
 from parakeet.training.checkpoint import KBest, KLatest
 from parakeet.models.parallel_wavegan import PWGGenerator, PWGDiscriminator
 from parakeet.modules.stft_loss import MultiResolutionSTFTLoss
-from parakeet.utils.profile import synchronize, nvxt_span
+from parakeet.utils.profile import synchronize, nvtx_span
 
 
 class PWGUpdater(StandardUpdater):
@@ -75,11 +75,11 @@ class PWGUpdater(StandardUpdater):
         # Generator
         noise = paddle.randn(wav.shape)
 
-        with nvxt_span("generator forward"):
+        with nvtx_span("generator forward"):
             wav_ = self.generator(noise, mel)
 
         ## Multi-resolution stft loss
-        with nvxt_span("stft forward"):
+        with nvtx_span("stft forward"):
             sc_loss, mag_loss = self.criterion_stft(
                 wav_.squeeze(1), wav.squeeze(1))
 
@@ -89,7 +89,7 @@ class PWGUpdater(StandardUpdater):
 
         ## Adversarial loss
         if self.state.iteration > self.discriminator_train_start_steps:
-            with nvxt_span("discriminator forward"):
+            with nvtx_span("discriminator forward"):
                 p_ = self.discriminator(wav_)
                 adv_loss = self.criterion_mse(p_, paddle.ones_like(p_))
             report("train/adversarial_loss", float(adv_loss))
@@ -97,11 +97,11 @@ class PWGUpdater(StandardUpdater):
 
         report("train/generator_loss", float(gen_loss))
 
-        with nvxt_span("generator (and maybe discriminator) backward"):
+        with nvtx_span("generator (and maybe discriminator) backward"):
             self.optimizer_g.clear_grad()
             gen_loss.backward()
 
-        with nvxt_span("generator update"):
+        with nvtx_span("generator update"):
             self.optimizer_g.step()
             self.scheduler_g.step()
 

@@ -26,7 +26,7 @@ def synchronize():
 
 
 @contextmanager
-def nvxt_span(name):
+def nvtx_span(name):
     try:
         core.nvprof_nvtx_push(name)
         yield
