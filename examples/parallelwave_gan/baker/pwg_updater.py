@@ -31,7 +31,7 @@ from parakeet.training.reporter import report
 from parakeet.training.checkpoint import KBest, KLatest
 from parakeet.models.parallel_wavegan import PWGGenerator, PWGDiscriminator
 from parakeet.modules.stft_loss import MultiResolutionSTFTLoss
-from parakeet.utils.profile import synchronize
+from parakeet.utils.profile import synchronize, nvxt_span
 
 
 class PWGUpdater(StandardUpdater):
@@ -75,19 +75,13 @@ class PWGUpdater(StandardUpdater):
         # Generator
         noise = paddle.randn(wav.shape)
 
-        synchronize()
-        with timer() as t:
+        with nvxt_span("generator forward"):
             wav_ = self.generator(noise, mel)
-            synchronize()
-            logging.debug(f"Generator takes {t.elapse}s.")
 
         ## Multi-resolution stft loss
-        synchronize()
-        with timer() as t:
+        with nvxt_span("stft forward"):
             sc_loss, mag_loss = self.criterion_stft(
                 wav_.squeeze(1), wav.squeeze(1))
-            synchronize()
-            logging.debug(f"Multi-resolution STFT loss takes {t.elapse}s.")
 
         report("train/spectral_convergence_loss", float(sc_loss))
         report("train/log_stft_magnitude_loss", float(mag_loss))
@@ -95,31 +89,21 @@ class PWGUpdater(StandardUpdater):
 
         ## Adversarial loss
         if self.state.iteration > self.discriminator_train_start_steps:
-            synchronize()
-            with timer() as t:
+            with nvxt_span("discriminator forward"):
                 p_ = self.discriminator(wav_)
                 adv_loss = self.criterion_mse(p_, paddle.ones_like(p_))
-                synchronize()
-                logging.debug(
-                    f"Discriminator and adversarial loss takes {t.elapse}s")
             report("train/adversarial_loss", float(adv_loss))
             gen_loss += self.lambda_adv * adv_loss
 
         report("train/generator_loss", float(gen_loss))
 
-        synchronize()
-        with timer() as t:
+        with nvxt_span("generator (and maybe discriminator) backward"):
             self.optimizer_g.clear_grad()
             gen_loss.backward()
-            synchronize()
-            logging.debug(f"Backward takes {t.elapse}s.")
 
-        synchronize()
-        with timer() as t:
+        with nvxt_span("generator update"):
             self.optimizer_g.step()
             self.scheduler_g.step()
-            synchronize()
-            logging.debug(f"Update takes {t.elapse}s.")
 
         # Disctiminator
         if self.state.iteration > self.discriminator_train_start_steps:

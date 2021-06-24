@@ -24,10 +24,11 @@ import jsonlines
 import paddle
 import numpy as np
 from paddle import nn
+from paddle.framework import core
 from paddle.nn import functional as F
 from paddle import distributed as dist
 from paddle.io import DataLoader, DistributedBatchSampler
-from paddle.optimizer import Adam  # No RAdaom
+from paddle.optimizer import Adam, SGD  # No RAdaom
 from paddle.optimizer.lr import StepDecay
 from paddle import DataParallel
 from visualdl import LogWriter
@@ -132,7 +133,7 @@ def train_sp(args, config):
         learning_rate=lr_schedule_g,
         grad_clip=gradient_clip_g,
         parameters=generator.parameters(),
-        **config["generator_optimizer_params"])
+        **config["generator_optimizer_params"], )
     lr_schedule_d = StepDecay(**config["discriminator_scheduler_params"])
     gradient_clip_d = nn.ClipGradByGlobalNorm(config["discriminator_grad_norm"])
     optimizer_d = Adam(
@@ -183,7 +184,7 @@ def train_sp(args, config):
 
     trainer = Trainer(
         updater,
-        stop_trigger=(config.train_max_steps, "iteration"),
+        stop_trigger=(10, "iteration"),
         out=output_dir, )
 
     trainer.extend(
@@ -200,10 +201,11 @@ def train_sp(args, config):
         priority=2)
     print("Trainer Done!")
 
-    # with paddle.fluid.profiler.profiler('All', 'total',
-    #                                     str(output_dir / "profiler.log"),
-    #                                     'Default') as prof:
+    # profiling
+    core.nvprof_start()
+    core.nvprof_enable_record_event()
     trainer.run()
+    core.nvprof_stop()
 
 
 def main():

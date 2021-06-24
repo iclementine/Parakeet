@@ -20,6 +20,7 @@ from typing import Union
 
 from timer import timer
 import paddle
+from paddle.framework import core
 from paddle import Tensor
 from paddle.nn import Layer
 from paddle.optimizer import Optimizer
@@ -135,7 +136,9 @@ class StandardUpdater(UpdaterBase):
 
         # training for a step is implemented here
         batch = self.read_batch()
+        core.nvprof_nvtx_push(str(self.state.iteration))
         self.update_core(batch)
+        core.nvprof_nvtx_pop()
 
     def update_core(self, batch):
         """A simple case for a training step. Basic assumptions are:
